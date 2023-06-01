@@ -30,7 +30,8 @@ class LocalScheduler:
             if len(args) != 2:
                 raise ValueError("Unknown arguments given to LocalScheduler")
 
-        implemented_funcs = {"linear": (self.linear, True),
+        implemented_funcs = {"const":  (self.const,  True),
+                             "linear": (self.linear, True),
                              "cosine": (self.cosine, True),
                              "exp":    (self.exp,    True),
                              "custom": (self.custom, True),
@@ -45,6 +46,9 @@ class LocalScheduler:
         if self.ratio:
             return self.eps0 * self.lr_at(x / X)
         return self.eps0 * self.lr_at(x)
+    
+    def const(self, t):
+        return 1
 
     def linear(self, t):
         return (1 - t)

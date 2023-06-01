@@ -17,6 +17,7 @@ from socket import gethostname
 import pandas as pd
 import threading
 import torch, time
+from tqdm import tqdm
 
 
 def get_next_hebb_model(model_getter):
@@ -89,8 +90,9 @@ def hebb_run(GS_func):
 def clas_run(hebb_func, GS_func):
     """Classifications are a bit more complicated, need to give it a hebbian getter and a model getter."""
     hebbians = hebb_func()[0].keys()
+    fam = hebb_func()[1]
     for idx, hebbian in enumerate(hebbians):
-        if hebbian in existing_models():
+        if hebbian in existing_models(fam=fam):
             print(f"Starting Hebbian {idx}/{len(hebbians)}: {hebbian}")
             secure_run(lambda: get_next_clas_model(hebbian, GS_func))
 
@@ -99,15 +101,16 @@ def restricted_clas_run(hebb_func, GS_func, restrictor):
     Same as clas_run, but with a restriction on the hebbian models, like if you only want models with a certain K or ratio.
     """
     hebbians = hebb_func()[0].keys()
+    fam = hebb_func()[1]
     for idx, hebbian in enumerate(hebbians):
-        if hebbian in existing_models():
-            if not restrictor(read_params(hebbian)):
+        if hebbian in existing_models(fam=fam):
+            if not restrictor(read_params(hebbian, fam)):
                 print(f"Starting Hebbian {idx}/{len(hebbians)}: {hebbian}")
                 secure_run(lambda: get_next_clas_model(hebbian, GS_func))
 
-def read_params(hebbian):
+def read_params(hebbian, fam):
     """Reads the 'readable_parameters.txt' file and returns a dictionary with the parameters."""
-    with open(f"{hebb_path()}{hebbian}/readable_parameters.txt") as f:
+    with open(f"{hebb_path(fam=fam)}{hebbian}/readable_parameters.txt") as f:
         params = f.read().strip().split("\n")[3:]
         params = {p.split(":")[0].strip(): p.split(":", 1)[1].strip() for p in params}
     return params
@@ -128,6 +131,7 @@ def Activate_restrictor(params):
     return True
 
 
+
 if __name__ == "__main__":
     # hebb_run(grid_search.ProjectMercuryBP)
     # clas_run(grid_search.ProjectMercuryHebbian, grid_search.ProjectMercuryClassifiers)
@@ -138,5 +142,12 @@ if __name__ == "__main__":
     # clas_run(grid_search.Activation_Hebb, grid_search.Activation_Classifiers)
     restricted_clas_run(grid_search.Activation_Hebb, grid_search.Activation_Classifiers, Activate_restrictor)
 
-    send_msg(f"Done with grid search on {gethostname()}.")
+    # print(existing_models(fam="Activate"))
+    # for name in tqdm(existing_models(fam="Activate")):
+    #     train_main(train_argparser(f"--family Activate --name {name} --mode local-learning".split()))
 
+    # hebb_run(grid_search.Ensambler_hebb)
+    # restricted_clas_run(grid_search.Ensambler_hebb, grid_search.Ensambler_classifiers, Activate_restrictor)
+    # hebb_run(grid_search.Ensambler_BP)
+    send_msg(f"Done with grid search on {gethostname()}.")
+    

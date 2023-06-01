@@ -5,6 +5,8 @@ from train_models import existing_models
 from layers.classification import BPNet
 import pickle
 
+from IPython import embed
+
 def remove_double_header(filename):
     """ Sometimes the header is duplicated. This removes the second header. """
     with open(filename, 'r') as f:
@@ -42,10 +44,13 @@ def add_maxpool_state(filename):
 def glob_models(fam):
     """ Returns a list of all csv files in the generation folder, recuvrsively. """
     models = existing_models(fam=fam)
+    if models[-1] == "__pycache__":
+        models = models[:-1]
     csvs = [file
             for path, subdir, files in os.walk(f"Models/{fam}")
-            for file in glob(os.path.join(path, "*.csv"))]
-    return sorted(models), csvs  #* Skip family_ranking.csv
+            for file in glob(os.path.join(path, "*.csv")) 
+            if ("fgsm" not in file and "pgd" not in file)]
+    return models, csvs  #* Skip family_ranking.csv
 
 def change_csvs(fam):
     """ Makes changes to the csv files. """
@@ -55,14 +60,14 @@ def change_csvs(fam):
         remove_double_header(file)
         # add_maxpool_state(file)
 
-def gather_family_record():
+def gather_family_record(fam="ProjectMercury"):
     """
     All the classifier models are stored seperately, under each of the hebbian models.
     Thin function will gather all the variable hyperparameters for all the classifier models,
     so that they can be compared directly.
     The dataframe is saved as 'family_ranking.csv' in the generation folder.
     """
-    living_models, csvs = glob_models()
+    living_models, csvs = glob_models(fam)
     hebbians, clas = pd.read_csv(csvs[0]), csvs[1:]
     classers = {file.split("/")[2]: pd.read_csv(file) for file in clas}
 
@@ -74,26 +79,31 @@ def gather_family_record():
                       "p"      : "p",
                       "k"      : "k",
                       "width"  : "width",
-                      "ratio"  : "conv_rate",
+                      "ratio"  : "ratio",
                       }
     clas_cols_conv = {"name"     : "clas_name",
                       "eps0"     : "clas_lr",
                       "lr_type"  : "clas_lr_type",
                       "power"    : "power",
-                      "mp_kernel": "MxP_kernel",
-                      "mp_stride": "MxP_stride",
+                      "maxpool_kernel": "MxP_kernel",
+                      "maxpool_stride": "MxP_stride",
                       "test_acc" : "test_acc",
+                      "activate" : "activate",
                       }
     collect = []
     for hebbian_name in living_models:
+        if hebbian_name not in classers.keys():
+            continue
         hebbian = hebbians[hebbians["name"] == hebbian_name][hebb_cols_conv.keys()].rename(columns=hebb_cols_conv).reset_index(drop=True)
         for classer in classers[hebbian_name].iterrows():
             clas = classer[1][clas_cols_conv.keys()].rename(clas_cols_conv).to_frame().T.reset_index(drop=True)
             collect.append(hebbian.combine_first(clas))
     df = pd.concat(collect, axis=0, ignore_index=True, join="outer")
-    column_order = [10, 5, 8, 9, 3, 4, 15, 0, 11, 12, 7, 13, 1, 2, 6, 14]
+    column_order = [10, 6, 8, 9, 4, 5, 16, 0, 11, 12, 7, 13, 3, 1, 2, 14, 15]
     df = df[df.columns[column_order]]
-    df.to_csv("Models/ProjectMercury/family_ranking.csv", index=False)
+    fname = f"Models/{fam}/family_ranking.csv"
+    df.to_csv(fname, index=False)
+    print("Saved", fname)
 
 def gather_BP_models():
     """I forgot to record family records for the BP models.
@@ -151,12 +161,21 @@ def tmp_main():
 
 if __name__ == "__main__":
     # change_csvs("Activate")
-    find_untrained_classifiers("Activate")
-    ratio_control("Activate")
-    # gather_family_record()
+    # find_untrained_classifiers("Activate")
+    # ratio_control("Activate")
     # df = pd.read_csv("Models/ProjectMercury/family_ranking.csv").sort_values(by="test_acc", ascending=False)
     # print(df)
     # gather_BP_models()
     # df = pd.read_csv("Models/ProjectMercuryBP/family_ranking.csv").sort_values(by="test_accuracy", ascending=False)
     # print(df)
-    tmp_main()
+    # tmp_main()
+
+    gather_family_record("Activate")
+    # fam = "Activate"
+    # living_models, csvs = glob_models(fam)
+    # hebbians, clas = pd.read_csv(csvs[0]), csvs[1:]
+    # for cla in clas:
+    #     remove_double_header(cla)
+    # classers = {file.split("/")[2]: pd.read_csv(file) for file in clas}
+
+    # embed()
