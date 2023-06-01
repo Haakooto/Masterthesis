@@ -230,9 +230,15 @@ def Activation_Hebb():
 def Activation_Classifiers(Hebb_name):
     base = "--mode classify --num-epochs 100 --save-all --seed -1 --grid-search --scheduler 2e-3 cosine --maxpool-stride 2"
 
-    powers = [4, 6, 8, 10, 12]
-    activations = ["relu", "elu", "gelu", "exp", "rexp"]
-    mxpools = [5, 7, 9, 11, 13]
+    # powers = [4, 6, 8, 10, 12]
+    # powers = [2, 16] 
+    # powers = [16, 20, 25, 30] 
+    powers = [35, 40, 45, 50]
+    # activations = ["relu", "elu", "gelu", "exp", "rexp"]
+    # activations = ["relu", "elu", "gelu"]
+    activations = ["gelu"]
+    # mxpools = [5, 7, 9, 11, 13]
+    mxpools = [7, 9]  #! used when running power = 2 and 16
 
     family = {}
     for mxpool in mxpools:
@@ -254,7 +260,7 @@ def Activation_Classifiers(Hebb_name):
 def Activation_BP():
     base = "--mode endtoend --family ActivateBP --num-epochs 70 --save-all --seed -1 --grid-search --maxpool-stride 2"
 
-    powers = [2, 4, 6, 8, 10, 12]
+    powers = [1, 2, 4, 6, 8, 10, 12, 16]
     activations = ["relu", "elu", "gelu", "exp", "rexp"]
     mxpools = [5, 7, 9, 11, 13]
     widths = [4, 8, 12]
@@ -278,6 +284,68 @@ def Activation_BP():
                             command += f" --name {name}"
                             family[name] = command
     return family, "ActivateBP"
+
+def Ensambler_hebb():
+    base = "--mode local-learning --family Ensamblers --num-epochs 30 --save-all --seed -1 --grid-search --delta 0.1"
+    copies = 10
+
+    Ks = [10, 20]
+    widths = [4, 12]
+    ks = [3, 4]
+    ps = [2, 4]
+
+    family = {}
+    for c in range(copies):
+        for K in Ks:
+            for width in widths:
+                for k in ks:
+                    for p in ps:
+                        command = base + f" --K {K} --width {width} --k {k} --p {p}"
+                        name = f"K{K}_w{str(width).zfill(2)}_{k}{p}_copy{c}"
+                        command += f" --name {name}"
+                        family[name] = command
+    return family, "Ensamblers"
+
+def Ensambler_classifiers(Hebb_name):
+    base = "--mode classify --family Ensamblers --num-epochs 100 --save-all --seed -1 --grid-search --scheduler 2e-3 cosine --maxpool-stride 2 --activate gelu"
+
+    copies = 10
+    powers = [4, 12]
+    mxpools = [5, 9]
+
+    family = {}
+    for c in range(copies):
+        for mxpool in mxpools:
+            for power in powers:
+                command = base + f" --power {power} --maxpool-kernel {mxpool}"
+                name = f"MX{mxpool}_{str(power).zfill(2)}_copy{c}"
+                command += f" --name {Hebb_name} {name}"
+                family[name] = command
+    return family, "Ensamblers"
+
+def Ensambler_BP():
+    base = "--mode endtoend --family EnsamblersBP --num-epochs 70 --save-all --seed -1 --grid-search --maxpool-stride 2"
+    copies = 10
+
+    powers = [4, 12]
+    mxpools = [5, 9, 11]
+    widths = [4, 12]
+    Ks = [10, 20]
+    acts = ["elu", "gelu", "rexp"]
+
+    family = {}
+    for c in range(copies):
+        for K in Ks:
+            for width in widths:
+                for mxpool in mxpools:
+                    for act in acts:
+                        for power in powers:
+                            command = base + f" --power {power} --maxpool-kernel {mxpool} --K {K} --width {width} --activate {act}"
+                            name = f"K{K}_w{str(width).zfill(2)}_MX{mxpool}_{act}{str(power).zfill(2)}_copy{c}"
+                            command += f" --name {name}"
+                            family[name] = command
+    return family, "EnsamblersBP"
+
 
 def write_to_make(func, cmds):
     """Dumps the commands to a makefile. Legacy"""

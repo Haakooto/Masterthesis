@@ -16,7 +16,8 @@ from tqdm import tqdm
 from collections import defaultdict
 import matplotlib.pyplot as plt
 
-from layers.local_learning import LocalLearning
+from layers.efficient_local_learning import LocalLearning
+# from layers.local_learning import LocalLearning
 
 class BioNet(nn.Module):
     def __init__(self, path, args=None):
@@ -145,7 +146,7 @@ class BioNet(nn.Module):
 
             name = f"{self.path}/weights{path}/class{clas}.png"
             plt.savefig(fname=name)
-            plt.clf()
+            plt.close()
 
     def __str__(self):
         print(self.Hebbian)
@@ -179,14 +180,15 @@ class BioNet(nn.Module):
             f = getattr(FF, self.activate)
             self.activation = lambda x: f(x) ** self.power
 
-    def forward(self, x):                              #* (imgs, img_dim, img_dim,  channels)
+    def forward(self, x, SF=True):                              #* (imgs, img_dim, img_dim,  channels)
         x = self.Hebbian(x)                            #* (imgs, hidden,  patches)
         x = x.reshape(x.shape[0], *self.poolshape_in)  #* (imgs, hidden,  patches_pr_dim, patches_pr_dim)
         x = self.maxPool(x)                            #* (imgs, hidden,  poolshape_out)
-        # x = FF.gelu(x) ** self.power                   #* (imgs, hidden,  poolshape_out)
         x = self.activation(x)                         #* (imgs, hidden,  poolshape_out)
         x = torch.flatten(x, 1)                        #* (imgs, hidden * poolshape_out)
         x = self.classifier(x)                         #* (imgs, classes)
+        if not SF:
+            return x
         return FF.log_softmax(x, dim=1)
 
     def hidden_layer(self, x):  #* (imgs, img_dim, img_dim,  channels)
@@ -237,7 +239,7 @@ class BPNet(nn.Module):
                 if hasattr(layer, "reset_parameters"):
                     layer.reset_parameters()
 
-    def forward(self, x):                       #* (imgs, img_dim, img_dim, channels)
+    def forward(self, x, SF=True):                       #* (imgs, img_dim, img_dim, channels)
         x = rearrange(x, "n h w c -> n c h w")  #* (imgs, channels, img_dim, img_dim)
         x = self.Conv2d(x)                      #* (imgs, hidden, patches_pr_dim, patches_pr_dim)
         x = self.MaxPool(x)                     #* (imgs, hidden, poolshape_out, poolshape_out)
@@ -245,8 +247,9 @@ class BPNet(nn.Module):
         x = self.activation(x)
         x = torch.flatten(x, 1)                 #* (imgs, hidden * poolshape_out ** 2)
         x = self.classifier(x)                  #* (imgs, classes)
-        output = FF.log_softmax(x, dim=1)
-        return output
+        if not SF:
+            return x
+        return FF.log_softmax(x, dim=1)
 
     def init_activation_function(self):
         """Activation function. Added later, so some back-compatibility is needed."""
@@ -346,7 +349,7 @@ class Classifier:
         pbar = tqdm(range(1, epochs+1))
 
         train_set.set_chw(model.chw)  #* Makes sure the dataset is in the correct format
-        train_set.to(model.device)  #* Makes sure the dataset is on the correct device
+        train_set.to(model.device)    #* Makes sure the dataset is on the correct device
 
         print(f"\nRunning supervised training")
         print(f"Epochs: {epochs}, images: {len(train_set)}, batch size: {self.batch_size}")
@@ -392,6 +395,7 @@ class Classifier:
             output = self.model(x)
 
             loss = FF.nll_loss(output, target, reduction='sum')
+            # loss = FF.cross_entropy(output, target, reduction='mean')
             loss.backward()
             self.optimizer.step()
 
@@ -421,6 +425,7 @@ class Classifier:
 
                 output = self.model(x)
                 test_loss += FF.nll_loss(output, target, reduction='sum').item()
+                # test_loss += FF.cross_entropy(output, target, reduction='mean').item()
                 c, pred = output.max(dim=1, keepdim=False)
                 correct += pred.eq(target).sum().item()
                 certainty += c.exp().sum().item()

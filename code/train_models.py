@@ -198,6 +198,7 @@ def print_params(args):
         Classifier_layer = BioNet(path=clas_path(args.name[0], args.name[1], fam=args.family))
         Classifier_layer.load_model(hebb_name=args.name[0], name=args.name[1])
         print(Classifier_layer)
+        # print(torch.prod(torch.tensor(Classifier_layer.Hebbian.hebb_synapses.shape)) + torch.prod(torch.tensor(Classifier_layer.classifier.weight.shape)))
 
     else:
         Hebbian_layer = LocalLearning(path=hebb_path(args.name[0], fam=args.family)).load_model(name=args.name[0], device=args.device)

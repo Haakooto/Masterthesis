@@ -24,10 +24,10 @@ class LocalLearning:
         """
         self.path = path
 
-        if args is not None:
+        if args is not None:  #* when making new model
             self.reset_model(args)
             self._needs_parameter_loading = False
-        else:
+        else:  #* when loading model
             self._needs_parameter_loading = True
 
     def reset_model(self, args=None):
@@ -51,6 +51,8 @@ class LocalLearning:
             #* pre-make some tensors to avoid re-allocating memory in the training loop
             self._g_i = torch.zeros(self.num_hidden, self.batch_size)
             self._indexer = torch.arange(self.batch_size)
+            self.patch_indexer = self.make_patch_indexer()
+            # self.patches = torch.zeros((self.batch_size, self.patch_pixels, self.num_patches))                              #? (imgs, patch_pixels, patches)
 
             #* The weights of the model
             self.hebb_synapses = torch.Tensor(self.num_hidden,   #* initialize synapses
@@ -87,7 +89,6 @@ class LocalLearning:
 
         If anim is True, the weights are drawn in a matplotlib animation by returning the matrix before drawing.
         """
-        print("Drawing synapses")
         assert not self._needs_parameter_loading, "Model needs to be given parameters before drawing weights"
 
         #* clip inputs to valid range, default to self.K
@@ -134,34 +135,45 @@ class LocalLearning:
         """Send torch tensors to device"""
         if device is None: device = self.device
         self.hebb_synapses = self.hebb_synapses.to(device, copy=False)
-        self._g_i          = self._g_i.to(device,          copy=False)
-        self._indexer      = self._indexer.to(device,      copy=False)
+        self.patch_indexer = self.patch_indexer.to(device, copy=False)
+        # self.patches       = self.patches.to(device,       copy=False)
 
     def detach(self):
         """Detach torch tensors from the computational graph and send to CPU"""
         self.hebb_synapses = self.hebb_synapses.detach().cpu()
         self._g_i          = self._g_i.detach().cpu()
         self._indexer      = self._indexer.detach().cpu()
+        self.patch_indexer = self.patch_indexer.detach().cpu()
+        self.patches       = self.patches.detach().cpu()
 
-    def patchify(self, x):
-        """
-        Takes an image (or N images) and returns a normalized tensor of patches.
-        Equivalent to torch.nn.Unfold, but order of packing is different.
-        nn.Unfold packs row-wise, this packs column-wise.
-        Testing shows that this is faster than nn.Unfold. See testing_ground/unfolder_test.py.
-        """
-        patches = torch.zeros((x.size(0), self.patch_pixels, self.num_patches), device=self.device)                              #? (imgs, patch_pixels, patches)
-        for row_idx in range(self._patches_pr_dim):
-            row = x[:, row_idx: row_idx+self.width, :, :]                                                                        #? (imgs, width, dim,  channels)
-            flattened = row.transpose(1, 2).reshape((x.size(0), -1))                                                             #? (imgs, dim * width * channels)
-            for col_idx in range(self._patches_pr_dim):
-                patch = flattened[:, col_idx * self.channels * self.width: (self.width + col_idx) * self.channels * self.width]  #? (imgs, patch_pixels)
-                patches[:, :, row_idx * self._patches_pr_dim + col_idx] = patch
+    def dynamic_patchify(self, x):
+        if x.size(0) != self.patches.size(0):
+            self.patches = torch.zeros((x.size(0), self.patch_pixels, self.num_patches), dtype=self.patches.dtype, device=self.patches.device)
+        return self.fast_patchify(x)
 
-        norm = torch.linalg.norm(patches, dim=1, ord=self.p, keepdims=True)
+    def fast_patchify(self, x):
+        # self.patches = self.patches * 0
+        # for i in range(self.patch_pixels):
+        #     self.patches[:, i, :] = x[:, self.patch_indexer[i]]
+        self.patches = x[:, self.patch_indexer]
+        self.patches = self.patches.reshape((x.size(0), self.patch_pixels, self.num_patches))
+        
+        norm = torch.linalg.norm(self.patches, dim=1, ord=self.p, keepdims=True)
         norm = torch.where(norm > 1e-7, norm, 1.)
-        return patches / norm
-
+        return self.patches / norm
+    
+    def make_patch_indexer(self):
+        #* The original patchify function, but only used for making the patch indexer
+        x = torch.arange(32 * 32 * 3, dtype=int).reshape(1, 32, 32, 3)  #! THIS IS HARDCODED FOR CIFAR
+        Idx = torch.zeros((x.size(0), self.patch_pixels, self.num_patches), dtype=x.dtype, device=self.device)                              
+        for row_idx in range(self._patches_pr_dim):
+            row = x[:, row_idx: row_idx+self.width, :, :]                                                                        
+            flattened = row.transpose(1, 2).reshape((x.size(0), -1))                                                             
+            for col_idx in range(self._patches_pr_dim):
+                patch = flattened[:, col_idx * self.channels * self.width: (self.width + col_idx) * self.channels * self.width]  
+                Idx[:, :, row_idx * self._patches_pr_dim + col_idx] = patch
+        return Idx[0].flatten()
+    
     def train_unsupervised(self, x, epochs):
         """
         Training function for unsupervised learning.
@@ -175,6 +187,10 @@ class LocalLearning:
         if self.trained:
             print(f"Model is already trained. Skipping training.")
             return
+
+        #* Send to device only when training, not when testing
+        self._g_i     = self._g_i.to(x.device,          copy=False)
+        self._indexer = self._indexer.to(x.device,      copy=False)
 
         self.time_of_training.append(datetime.strftime(datetime.now(), "%Y-%m-%d %H:%M:%S"))
 
@@ -196,7 +212,7 @@ class LocalLearning:
         self.save_synapses_during_training(self.num_epochs)
 
         #* wrap as Tensor
-        x = torch.Tensor(x).float().to(self.device)
+        x = torch.Tensor(x).float().to(self.device).flatten(1)
 
         try:  #* try-except to catch keyboard interrupt for ending training early
             for epoch in range(epochs):
@@ -210,7 +226,7 @@ class LocalLearning:
                 for batch in range(num_train // self.batch_size):  #* +1 to include last batch
                     #* exctract batch from x_train_flat
                     batch = x[batch * self.batch_size: (batch + 1) * self.batch_size]  #? (batch_size, dim, dim, channels)
-                    patches = self.patchify(batch)  #* These are normalised            #? (batch_size, patch_pixels, patches)
+                    patches = self.fast_patchify(batch)  #* These are normalised       #? (batch_size, patch_pixels, patches)
 
                     for p_idx in range(self.num_patches):
                         patch = patches[:, :, p_idx]                                   #? (batch_size, patch_pixels)
@@ -223,6 +239,7 @@ class LocalLearning:
                         self.learning_activation(indices)                              #? (K**2, batch_size)
                         #* Learning algorithm
                         xx = (self._g_i * tot_input).sum(dim=1)                        #? (K**2)
+                        
                         ds = (torch.matmul(self._g_i, patch) - \
                             xx.unsqueeze(1) * self.hebb_synapses)                      #? (K**2, W*W*C)
                         nc = max(ds.abs().max(), self._prec)
@@ -264,13 +281,15 @@ class LocalLearning:
         return (self.hebb_synapses.sign() * self.hebb_synapses.abs() ** (self.p - 1)).matmul(x)
 
     def forward(self, x):                #* (imgs, img_dim, img_dim,  channels)
-        x = self.patchify(x)             #* (imgs, kernel_size * channels,  patches)
+        x = self.fast_patchify(x)     #* (imgs, kernel_size * channels,  patches)
         x = self.synaptic_activation(x)  #* (imgs, hidden,  patches)
         return x
 
     def __call__(self, x):
-        assert len(x.shape) == 4, "Input must be of shape (imgs, img_dim, img_dim,  channels)"
+        # assert len(x.shape) == 4, "Input must be of shape (imgs, img_dim, img_dim,  channels)"
         # assert x.shape[1] == x.shape[2], "Input must be square, with shape (imgs, img_dim, img_dim,  channels)"
+        if len(x.shape) == 4:
+            x = x.flatten(1)
         return self.forward(x)
 
     def minmaxnorm(self, x):
@@ -348,6 +367,12 @@ class LocalLearning:
 
         if verbose: print(f"Loaded parameters of {self.name} from file")
         self._needs_parameter_loading = False
+
+        if not hasattr(self, "patch_indexer"):
+            self.patch_indexer = self.make_patch_indexer()
+        if not hasattr(self, "patches"):
+            self.patches = torch.zeros((self.batch_size, self.patch_pixels, self.num_patches))                              #? (imgs, patch_pixels, patches)
+
 
         self.to(self.device)
         return self

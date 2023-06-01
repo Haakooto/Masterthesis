@@ -1,7 +1,9 @@
 import argparse
 import torch
-from utils.utils import FigArgs, pick_device, random_seed_generator, famy_path
+from utils.utils import FigArgs, pick_device, random_seed_generator
 from utils.schedule_selection import LocalScheduler, TorchScheduler, AttackStrength
+import utils.utils as utils
+famy_path, hebb_path, clas_path, existing_models = utils.path_utils_pack
 
 
 def attack_argparser(args=None) -> argparse.Namespace:
@@ -49,6 +51,55 @@ def attack_argparser(args=None) -> argparse.Namespace:
 
     return attack_args
 
+def simple_attack_argparser(args=None) -> argparse.Namespace:
+    """ old frameworks are too convoluted, so a complete reworking of attacking is needed. This is the argparser for the simpler framework. """
+    parser = argparse.ArgumentParser()
+    add_arg = parser.add_argument  # shorthand
+
+    add_arg("--name", type=str, nargs="+")
+    add_arg("--family", type=str, default="None", required=True)
+    add_arg("--force", action="store_true")
+    add_arg("--plot", action="store_true")
+    add_arg("--no-hist", action="store_true")
+    add_arg("--batch-size", type=int, default=1000)
+    add_arg('--dataset', type=str, default='CIFAR', choices=['CIFAR', 'MNIST'])
+    add_arg('--device', type=str, default="cuda")
+    add_arg("--seed", type=int, default=1)
+    add_arg("--attack", type=str, choices=["fgsm", "pgd"])
+    add_arg("--certainty", type=float, default=0)
+    add_arg("--cutoff", type=float, default=0.00)
+    add_arg("--pad", type=float, default=0.10)
+    add_arg("--size", type=float, default=0.12)  #* size of projection region. Default: ~10 rgb values
+    add_arg("--step", type=float, default=0.001)  #* step size for pgd. Default: 0.1275 rgb values
+
+    parsed = parser.parse_args(args)
+    parsed.family = famy_path if parsed.family == "None" else parsed.family
+    parsed.BP = parsed.family[-2:] == "BP"
+
+    if parsed.certainty > 1:  #* Samples are given with certainty param above 1.
+        parsed.certainty = int(parsed.certainty)
+
+    if parsed.name is None:  #* No specific model given, so attack the entire family
+        parsed.fam_attack = True 
+        # path = hebb_path(name=existing_models(fam=parsed.family)[0], fam=parsed.family)
+        # try:  #* Need to determine if BP or not, try to load BP_params for the first member of family
+        #     open(f"{path}/BP_parameters.pkl", "rb")
+        # except FileNotFoundError:
+        #     parsed.BP = False  #* If BP_params not found, then not BP
+        # else:
+        #     parsed.BP = True  #* If BP_params found, then BP
+    else:  #* Specific model given, so attack that model
+        parsed.fam_attack = False
+        parsed.BP = len(parsed.name) == 1  #* BP determined by number of names
+        if parsed.BP:
+            parsed.name = parsed.name[0]
+        else:
+            parsed.hebb_name = parsed.name[0]
+            parsed.name = parsed.name[1]
+        
+    parsed.seed = random_seed_generator(seed=parsed.seed) if parsed.seed < 1e4 else parsed.seed
+    parsed.device = pick_device(parsed.device)
+    return parsed
 
 def train_argparser(args=None) -> argparse.Namespace:
     """
@@ -86,6 +137,7 @@ def train_argparser(args=None) -> argparse.Namespace:
     shared_args.device = pick_device(shared_args.device)
     if shared_args.family == "None":
         shared_args.family = famy_path
+
 
     if shared_args.mode in ("local-learning", "animate-weights"):
         assert len(shared_args.name) == 1, "Only one model name can be given for local learning"

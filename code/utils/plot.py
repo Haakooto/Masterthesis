@@ -31,7 +31,7 @@ def plot_patches(patches):
     # print(first_patch.reshape(8, 8, 3).transpose((1, 0, 2)))
     plt.imshow(np.asarray(true))
     plt.savefig("the_true.png")
-    plt.clf()
+    plt.close()
 
     ppd = int(np.sqrt(len(patches)))
     fig, axs = plt.subplots(nrows=ppd, ncols=ppd)
@@ -39,13 +39,13 @@ def plot_patches(patches):
         ax.imshow(np.asarray(patches[i].reshape((8,8,3)).transpose(1, 0, 2)))
         ax.axis("off")
     plt.savefig("patches.png")
-    plt.clf()
+    plt.close()
 
 def plot_patche_classf(true, patches):
     """Was used for testting early implementation of patch classification. Now Hebbian model does this"""
     plt.imshow(np.asarray(true))
     plt.savefig("the_true_classf.png")
-    plt.clf()
+    plt.close()
 
     ppd = int(np.sqrt(patches.size(0)))
     fig, axs = plt.subplots(nrows=ppd, ncols=ppd)
@@ -55,7 +55,7 @@ def plot_patche_classf(true, patches):
         ax.imshow(np.asarray(patches[i].reshape((8,8,3)).transpose(1, 0)))
         ax.axis("off")
     plt.savefig("patches_classf.png")
-    plt.clf()
+    plt.close()
 
 def plot_ds(model):
     """Plots the ds of the hebbian model during training. ds is analogous to loss, and goes to 0 for good models"""
@@ -66,7 +66,7 @@ def plot_ds(model):
     ax.set_xlabel("Epochs")
     ax.set_ylabel(r"$\log_{10}(max|ds|)$")
     plt.savefig(f"{model.path}/ds_evolve.png")
-    plt.clf()
+    plt.close()
 
 
 def animate_weights(model, args):
@@ -109,7 +109,7 @@ def plot_results(model):
     ax.set_xlabel("Epochs")
     ax.set_ylabel("log(Loss)")
     plt.savefig(f"{model.path}/loss.png")
-    plt.clf()
+    plt.close()
 
     fig, ax = plt.subplots()
     ax.plot(results["train_accuracy"], label="Train accuracy")
@@ -119,7 +119,7 @@ def plot_results(model):
     ax.set_xlabel("Epochs")
     ax.set_ylabel("Accuracy")
     plt.savefig(f"{model.path}/accuracy.png")
-    plt.clf()
+    plt.close()
 
     fig, ax = plt.subplots()
     ax.plot(results["train_certainty"], label="Train certainty")
@@ -129,7 +129,7 @@ def plot_results(model):
     ax.set_xlabel("Epochs")
     ax.set_ylabel("certainty")
     plt.savefig(f"{model.path}/certainty.png")
-    plt.clf()
+    plt.close()
 
 def plot_BP_results(model):
     """Plots the resulting accuracies and losses"""
@@ -144,7 +144,7 @@ def plot_BP_results(model):
     ax.set_xlabel("Epochs")
     ax.set_ylabel("log(Loss)")
     plt.savefig(f"{model.path}/loss.png")
-    plt.clf()
+    plt.close()
 
     fig, ax = plt.subplots()
     ax.plot(results["train_accuracy"], label="Train accuracy")
@@ -154,7 +154,7 @@ def plot_BP_results(model):
     ax.set_xlabel("Epochs")
     ax.set_ylabel("Accuracy")
     plt.savefig(f"{model.path}/accuracy.png")
-    plt.clf()
+    plt.close()
 
 
     fig, ax = plt.subplots()
@@ -165,7 +165,7 @@ def plot_BP_results(model):
     ax.set_xlabel("Epochs")
     ax.set_ylabel("certainty")
     plt.savefig(f"{model.path}/certainty.png")
-    plt.clf()
+    plt.close()
 
 def E2E_hiddenW(model):
         assert not model._needs_parameter_loading, "Model needs to be given parameters before drawing weights"
@@ -197,7 +197,7 @@ def E2E_hiddenW(model):
 
         name = f"{model.path}/visualised_weights.png"
         plt.savefig(fname=name)
-        plt.clf()
+        plt.close()
 
 
 def ranged_attack_plot_single(results, args, path):
@@ -220,7 +220,7 @@ def ranged_attack_plot_single(results, args, path):
     ax.legend()
 
     plt.savefig(f"{path}/attacks/{args.eps.mode}_{args.attack}.png")
-    plt.clf()
+    plt.close()
 
 def smallest_few_attack_plot(results, args, path):
     fig, axs = plt.subplots(nrows=args.examples, ncols=2, figsize=(12, 5*args.examples))
@@ -253,7 +253,7 @@ def smallest_few_attack_plot(results, args, path):
                         hspace=0.15)
     fig.suptitle(f"Adversarial examples for {args.hebb_name if not args.BP else ''} {args.name} on {args.dataset} for {args.attack} attack", fontsize=16)
     plt.savefig(f"{path}/attacks/smallest_{args.attack}.png")
-    plt.clf()
+    plt.close()
 
 def class_boundary_plot(results, args, path):
     fig, ax = plt.subplots()
@@ -277,7 +277,7 @@ def class_boundary_plot(results, args, path):
     ax.set_title(f"Smallest epsilon for {args.hebb_name if not args.BP else ''} {args.name} on {args.dataset} for {args.attack} attack")
     ax.set_ylim(bottom=0)
     plt.savefig(f"{path}/attacks/class_{args.attack}.png")
-    plt.clf()
+    plt.close()
 
     # mx = np.max([np.max(results[c]) for c in classes[1:] if len(results[c]) != 0]) / 3
     mx = 0.1
@@ -289,4 +289,4 @@ def class_boundary_plot(results, args, path):
     ax.legend()
     ax.set_ylim(0, H[0].max())
     plt.savefig(f"{path}/attacks/class_{args.attack}_hist.png")
-    plt.clf()
+    plt.close()

@@ -151,16 +151,22 @@ class Attack_manager:
             if fit is None:
                 return False
 
-        s = np.where(epses < 1)
-        fit.x = epses[s]
-        fit.y = count[s]
-        fit.eval = fit.eval[s]
+        #* When plotting I don't want to show a very long tail
+        #* Find the std of the difference in unpadded epses,
+        #* and hide the points above the first eps that is 2 std away
+        diffs = epses[pad:] - epses[:-pad]
+        std = diffs.std()
+        d = np.where(diffs > 2 * std)[0][0]
+
+        fit.x = epses[:pad + d]
+        fit.y = count[:pad + d]
+        fit.eval = fit.eval[:pad + d]
         self.fit = fit
         return True
-    
+
     @property
     def prefix(self):
-        return f"{self.attack}_{str(self.certainty).replace('.', '')}"
+        return f"{self.attack}_C{str(self.certainty).replace('.', '')}"
 
     def plot_results(self):
         #* Plot the range and critical eps
@@ -237,7 +243,7 @@ class Attack_manager:
         output += "=" * len(output) + "\n"
         for key, val in attack_info.items():
             output += f"    {key:<25}: {val}\n"
-        
+
         og = sys.stdout
         with open(f"{self.model.path}/attacks/{self.prefix}_results.txt", "w") as f:
             sys.stdout = f

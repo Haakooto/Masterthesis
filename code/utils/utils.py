@@ -27,11 +27,16 @@ existing_models = lambda name=False, fam=famy_path: sorted([path.split("/")[-1] 
 
 path_utils_pack = [famy_path, hebb_path, clas_path, existing_models]
 
+final_figure_path = "/home/users/haakooto/local_learning_robustness/tex/figures"
+
 #* Backward compatibility fixes
-import utils.schedule_selection as ss
-LocalScheduler = ss.LocalScheduler
-ClassifyScheduler = ss.TorchScheduler
-TorchScheduler = ss.TorchScheduler
+try:
+    import utils.schedule_selection as ss
+    LocalScheduler = ss.LocalScheduler
+    ClassifyScheduler = ss.TorchScheduler
+    TorchScheduler = ss.TorchScheduler
+except ImportError:
+    pass
 
 def pick_device(device: str) -> torch.device:
     """
