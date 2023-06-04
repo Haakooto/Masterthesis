@@ -313,6 +313,10 @@ class Container:
     def click(self, event):
         if event.inaxes == self.Plotter.data_ax:
             if self.hover_ind is not None:
+                print("You can not download images from my server!")
+                print("They would have shown the convolution layer and robustness curve of the model you clicked")
+                return
+            
                 hebb_fig = plt.figure(
                     num=self.Plotter.fig.number + self.idx * 2 + 1)
                 hebb_fig.clf()
