@@ -313,6 +313,10 @@ class Container:
     def click(self, event):
         if event.inaxes == self.Plotter.data_ax:
             if self.hover_ind is not None:
+                print("You can not download images from my server!")
+                print("They would have shown the convolution layer and robustness curve of the model you clicked")
+                return
+            
                 hebb_fig = plt.figure(
                     num=self.Plotter.fig.number + self.idx * 2 + 1)
                 hebb_fig.clf()
@@ -409,23 +413,23 @@ def main():
     DataCollector = Collector()
 
     DataCollector.build_dataset("Activate",    "fgsm_C08"           , "LL: fgsm_C8", color="blue"  , BP=False, pgd=False, pos=(20, -50))
-    DataCollector.build_dataset("Activate",    "fgsm_C06"           , "LL: fgsm_C6", color="yellow", BP=False, pgd=False, pos=(20, -50))
-    DataCollector.build_dataset("Activate",    "fgsm_S1000"         , "LL: fgsm_S" , color="red"   , BP=False, pgd=False, pos=(20, -10))
+    # DataCollector.build_dataset("Activate",    "fgsm_C06"           , "LL: fgsm_C6", color="yellow", BP=False, pgd=False, pos=(20, -50))
+    # DataCollector.build_dataset("Activate",    "fgsm_S1000"         , "LL: fgsm_S" , color="red"   , BP=False, pgd=False, pos=(20, -10))
     DataCollector.build_dataset("ActivateBP",  "fgsm_C08"           , "BP: fgsm_C8", color="green" , BP=True , pgd=False, pos=(20, 20))
-    DataCollector.build_dataset("ActivateBP",  "fgsm_C06"           , "BP: fgsm_C6", color="orange", BP=True , pgd=False, pos=(20, 70) )
-    DataCollector.build_dataset("ActivateBP",  "fgsm_S1000"         , "BP: fgsm_S" , color="black" , BP=True , pgd=False, pos=(20, 70) )
+    # DataCollector.build_dataset("ActivateBP",  "fgsm_C06"           , "BP: fgsm_C6", color="orange", BP=True , pgd=False, pos=(20, 70) )
+    # DataCollector.build_dataset("ActivateBP",  "fgsm_S1000"         , "BP: fgsm_S" , color="black" , BP=True , pgd=False, pos=(20, 70) )
 
-    DataCollector.build_dataset("Activate",    "pgd_C08_s012_e0001" , "LL: pgd"    , color="green" , BP=False, pgd=True , pos=(20, -50))
-    DataCollector.build_dataset("Activate",    "pgd_C08_s014_e00005", "LL: pgd"    , color="blue"  , BP=False, pgd=True , pos=(20, 10))
+    # DataCollector.build_dataset("Activate",    "pgd_C08_s012_e0001" , "LL: pgd"    , color="green" , BP=False, pgd=True , pos=(20, -50))
+    # DataCollector.build_dataset("Activate",    "pgd_C08_s014_e00005", "LL: pgd"    , color="blue"  , BP=False, pgd=True , pos=(20, 10))
     # DataCollector.build_dataset("Activate",    "pgd_C07_s01_e00005" , "LL: pgd"    , color="red"   , BP=False, pgd=True , pos=(20, -100))
-    DataCollector.build_dataset("ActivateBP",  "pgd_C08_s012_e0001" , "BP: pgd"    , color="green" , BP=True , pgd=True , pos=(20, -50))
-    DataCollector.build_dataset("ActivateBP",  "pgd_C08_s014_e00005", "BP: pgd"    , color="red"   , BP=True , pgd=True , pos=(20, 10))
-    DataCollector.build_dataset("ActivateBP",  "pgd_C07_s01_e00005" , "BP: pgd"    , color="blue"  , BP=True , pgd=True , pos=(20, -100))
+    # DataCollector.build_dataset("ActivateBP",  "pgd_C08_s012_e0001" , "BP: pgd"    , color="green" , BP=True , pgd=True , pos=(20, -50))
+    # DataCollector.build_dataset("ActivateBP",  "pgd_C08_s014_e00005", "BP: pgd"    , color="red"   , BP=True , pgd=True , pos=(20, 10))
+    # DataCollector.build_dataset("ActivateBP",  "pgd_C07_s01_e00005" , "BP: pgd"    , color="blue"  , BP=True , pgd=True , pos=(20, -100))
 
-    DataCollector.build_dataset("Ensamblers",  "fgsm_C08"           , "LL: fgsm"   , color="blue"  , BP=False, pgd=False, pos=(20, -50))
-    DataCollector.build_dataset("Ensamblers",  "pgd_C08_s012_e0001" , "LL: pgd"    , color="green" , BP=False, pgd=True , pos=(20, -80))
-    DataCollector.build_dataset("EnsamblersBP","fgsm_C08"           , "BP: fgsm"   , color="red"   , BP=True , pgd=False, pos=(20, 00))
-    DataCollector.build_dataset("EnsamblersBP","pgd_C08_s012_e0001" , "BP: pgd"    , color="orange", BP=True , pgd=True , pos=(20, 50))
+    # DataCollector.build_dataset("Ensamblers",  "fgsm_C08"           , "LL: fgsm"   , color="blue"  , BP=False, pgd=False, pos=(20, -50))
+    # DataCollector.build_dataset("Ensamblers",  "pgd_C08_s012_e0001" , "LL: pgd"    , color="green" , BP=False, pgd=True , pos=(20, -80))
+    # DataCollector.build_dataset("EnsamblersBP","fgsm_C08"           , "BP: fgsm"   , color="red"   , BP=True , pgd=False, pos=(20, 00))
+    # DataCollector.build_dataset("EnsamblersBP","pgd_C08_s012_e0001" , "BP: pgd"    , color="orange", BP=True , pgd=True , pos=(20, 50))
 
     DP = DataPlotter(DataCollector.tags)
     DataCollector.contain(DP)
