@@ -1,4 +1,4 @@
-# Masterthesis
+# Towards Understanding Robustness of Neural Networks using Local Learning Rules
 
 Public repo with my masters in Computational Science: Physics at University of Oslo, spring 2023.
 
